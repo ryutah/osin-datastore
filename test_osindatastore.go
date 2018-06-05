@@ -11,6 +11,7 @@ type mockDatastoreClient struct {
 	getMulti      func(ctx context.Context, keys []datastore.Key, dst interface{}) error
 	put           func(ctx context.Context, key datastore.Key, src interface{}) (datastore.Key, error)
 	incompleteKey func(kind string, parent datastore.Key) datastore.Key
+	idKey         func(kind string, id int64, parent datastore.Key) datastore.Key
 }
 
 func (m *mockDatastoreClient) Get(ctx context.Context, key datastore.Key, dst interface{}) error {
@@ -70,7 +71,7 @@ func (m *mockDatastoreClient) NameKey(kind string, name string, parent datastore
 }
 
 func (m *mockDatastoreClient) IDKey(kind string, id int64, parent datastore.Key) datastore.Key {
-	panic("not implemented")
+	return m.idKey(kind, id, parent)
 }
 
 func (m *mockDatastoreClient) NewQuery(kind string) datastore.Query {

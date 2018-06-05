@@ -45,3 +45,18 @@ func (cl *clientRepository) Put(ctx context.Context, c *Client) (id string, err 
 	}
 	return strconv.FormatInt(newKey.ID(), 10), nil
 }
+
+func (cl *clientRepository) Get(ctx context.Context, id string) (*Client, error) {
+	intID, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	key := cl.client.IDKey(KindClient, intID, nil)
+	dst := new(Client)
+	if err := cl.client.Get(ctx, key, dst); err != nil {
+		return nil, err
+	}
+	dst.ID = intID
+	return dst, nil
+}
