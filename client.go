@@ -60,3 +60,13 @@ func (cl *clientRepository) Get(ctx context.Context, id string) (*Client, error)
 	dst.ID = intID
 	return dst, nil
 }
+
+func (cl *clientRepository) Delete(ctx context.Context, id string) error {
+	intID, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	key := cl.client.IDKey(KindClient, intID, nil)
+	return cl.client.Delete(ctx, key)
+}

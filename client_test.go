@@ -82,3 +82,27 @@ func TestClientRepository_Get(t *testing.T) {
 		t.Errorf("client\nwant %#v\n got %#v", wantClient, client)
 	}
 }
+
+func TestClientRepository_Delete(t *testing.T) {
+	var (
+		wantKeyID     int64 = 123
+		wantDeleteKey       = &mockKey{kind: "kind", id: 123}
+	)
+
+	mockDatastoreClient := &mockDatastoreClient{
+		delete: func(ctx context.Context, key datastore.Key) error {
+			return nil
+		},
+		idKey: func(kind string, id int64, parent datastore.Key) datastore.Key {
+			if id != wantKeyID {
+				t.Errorf("key id\nwant %v, got %v", wantKeyID, id)
+			}
+			return wantDeleteKey
+		},
+	}
+
+	cr := &clientRepository{client: mockDatastoreClient}
+	if err := cr.Delete(context.Background(), "123"); err != nil {
+		t.Error(err)
+	}
+}

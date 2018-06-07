@@ -10,6 +10,7 @@ type mockDatastoreClient struct {
 	get           func(ctx context.Context, key datastore.Key, dst interface{}) error
 	getMulti      func(ctx context.Context, keys []datastore.Key, dst interface{}) error
 	put           func(ctx context.Context, key datastore.Key, src interface{}) (datastore.Key, error)
+	delete        func(ctx context.Context, key datastore.Key) error
 	incompleteKey func(kind string, parent datastore.Key) datastore.Key
 	idKey         func(kind string, id int64, parent datastore.Key) datastore.Key
 }
@@ -31,7 +32,7 @@ func (m *mockDatastoreClient) PutMulti(ctx context.Context, keys []datastore.Key
 }
 
 func (m *mockDatastoreClient) Delete(ctx context.Context, key datastore.Key) error {
-	panic("not implemented")
+	return m.delete(ctx, key)
 }
 
 func (m *mockDatastoreClient) DeleteMulti(ctx context.Context, keys []datastore.Key) error {
