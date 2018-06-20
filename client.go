@@ -2,7 +2,6 @@ package datastore
 
 import (
 	"context"
-	"strconv"
 
 	"go.mercari.io/datastore"
 )
@@ -12,13 +11,14 @@ const KindClient = "client"
 
 // Client is struct of OAuth2 client.
 type Client struct {
-	ID          int64  `json:"id" datastore:"-"`
-	Secret      string `json:"secret" datastore:",noindex"`
-	RedirectUri string `json:"redirect_uri" datastore:",noindex"`
+	ID          string `json:"id,omitempty" datastore:"-"`
+	Secret      string `json:"secret,omitempty" datastore:",noindex"`
+	RedirectUri string `json:"redirect_uri,omitempty" datastore:",noindex"`
+	UserData    string `json:"user_data,omitempty" datastore:",noindex"`
 }
 
 func (c *Client) GetId() string {
-	return strconv.FormatInt(c.ID, 10)
+	return c.ID
 }
 
 func (c *Client) GetSecret() string {
@@ -30,43 +30,34 @@ func (c *Client) GetRedirectUri() string {
 }
 
 func (c *Client) GetUserData() interface{} {
-	panic("not implemented")
+	return c.UserData
 }
 
 type clientRepository struct {
 	client datastore.Client
 }
 
-func (cl *clientRepository) Put(ctx context.Context, c *Client) (id string, err error) {
-	key := cl.client.IncompleteKey(KindClient, nil)
-	newKey, err := cl.client.Put(ctx, key, c)
-	if err != nil {
-		return "", err
-	}
-	return strconv.FormatInt(newKey.ID(), 10), nil
+func newClientRepository(client datastore.Client) *clientRepository {
+	return &clientRepository{client: client}
+}
+
+func (cl *clientRepository) Put(ctx context.Context, c *Client) error {
+	key := cl.client.NameKey(KindClient, c.GetId(), nil)
+	_, err := cl.client.Put(ctx, key, c)
+	return err
 }
 
 func (cl *clientRepository) Get(ctx context.Context, id string) (*Client, error) {
-	intID, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
-		return nil, err
-	}
-
-	key := cl.client.IDKey(KindClient, intID, nil)
+	key := cl.client.NameKey(KindClient, id, nil)
 	dst := new(Client)
 	if err := cl.client.Get(ctx, key, dst); err != nil {
 		return nil, err
 	}
-	dst.ID = intID
+	dst.ID = id
 	return dst, nil
 }
 
 func (cl *clientRepository) Delete(ctx context.Context, id string) error {
-	intID, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
-		return err
-	}
-
-	key := cl.client.IDKey(KindClient, intID, nil)
+	key := cl.client.NameKey(KindClient, id, nil)
 	return cl.client.Delete(ctx, key)
 }

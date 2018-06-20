@@ -13,6 +13,7 @@ type mockDatastoreClient struct {
 	delete        func(ctx context.Context, key datastore.Key) error
 	incompleteKey func(kind string, parent datastore.Key) datastore.Key
 	idKey         func(kind string, id int64, parent datastore.Key) datastore.Key
+	nameKey       func(kind string, name string, parent datastore.Key) datastore.Key
 }
 
 func (m *mockDatastoreClient) Get(ctx context.Context, key datastore.Key, dst interface{}) error {
@@ -68,7 +69,7 @@ func (m *mockDatastoreClient) IncompleteKey(kind string, parent datastore.Key) d
 }
 
 func (m *mockDatastoreClient) NameKey(kind string, name string, parent datastore.Key) datastore.Key {
-	panic("not implemented")
+	return m.nameKey(kind, name, parent)
 }
 
 func (m *mockDatastoreClient) IDKey(kind string, id int64, parent datastore.Key) datastore.Key {
@@ -128,7 +129,7 @@ func (m *mockKey) ID() int64 {
 }
 
 func (m *mockKey) Name() string {
-	panic("not implemented")
+	return m.name
 }
 
 func (m *mockKey) ParentKey() datastore.Key {
