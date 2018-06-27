@@ -1,3 +1,4 @@
+// Package datastore is osin storage plugin for Google Cloud Datastore
 package datastore
 
 import (
