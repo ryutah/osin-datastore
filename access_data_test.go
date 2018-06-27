@@ -155,6 +155,42 @@ func TestAccessDataRepository_Get(t *testing.T) {
 	}
 }
 
+func TestAccessDataRepository_Get_Error(t *testing.T) {
+	tests := []struct {
+		testName string
+		in       string
+		want     error
+	}{
+		{
+			testName: "test1",
+			in:       "token",
+			want:     datastore.ErrNoSuchEntity,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.testName, func(t *testing.T) {
+			mockDatastoreClient := &mockDatastoreClient{
+				get: func(context.Context, datastore.Key, interface{}) error {
+					return datastore.ErrNoSuchEntity
+				},
+				nameKey: func(kind, name string, parent datastore.Key) datastore.Key {
+					return new(mockKey)
+				},
+			}
+
+			ar := &accessDataRepository{client: mockDatastoreClient}
+			_, err := ar.get(context.Background(), tt.in)
+			if err == nil {
+				t.Fatalf("should be return error %T, but nil", tt.want)
+			}
+			if err != tt.want {
+				t.Errorf("\nwant %#v\n got %#v", tt.want, err)
+			}
+		})
+	}
+}
+
 func TestAccessDataRepository_Delete(t *testing.T) {
 	type want struct {
 		keyName string

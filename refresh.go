@@ -14,8 +14,19 @@ type refresh struct {
 	AccessToken  string `datastore:",noindex"`
 }
 
+func newRefresh(refToken, accToken string) *refresh {
+	return &refresh{
+		RefreshToken: refToken,
+		AccessToken:  accToken,
+	}
+}
+
 type refreshRepository struct {
 	client datastore.Client
+}
+
+func newRefreshRepository(client datastore.Client) *refreshRepository {
+	return &refreshRepository{client: client}
 }
 
 func (r *refreshRepository) put(ctx context.Context, ref *refresh) error {

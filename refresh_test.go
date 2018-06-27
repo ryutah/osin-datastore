@@ -81,9 +81,9 @@ func TestRefreshRepository_Get(t *testing.T) {
 	}{
 		{
 			testName: "test1",
-			in:       "token",
+			in:       "refresh",
 			want: want{
-				keyName: "token",
+				keyName: "refresh",
 				key:     &mockKey{kind: "kind", name: "token"},
 				ref: &refresh{
 					RefreshToken: "refresh",

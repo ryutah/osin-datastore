@@ -2,8 +2,10 @@ package datastore
 
 import (
 	"context"
+	"strings"
 	"time"
 
+	"github.com/RangelReale/osin"
 	"go.mercari.io/datastore"
 )
 
@@ -23,8 +25,36 @@ type accessData struct {
 	UserData          string    `datastore:",noindex"`
 }
 
+func newAccessDataFrom(a *osin.AccessData) (*accessData, error) {
+	var userData string
+	if a.UserData != nil {
+		ud, ok := a.UserData.(string)
+		if !ok {
+			return nil, ErrInvalidUserDataType
+		}
+		userData = ud
+	}
+
+	return &accessData{
+		AccessToken:       a.AccessToken,
+		ParentAccessToken: a.AccessData.AccessToken,
+		ClientKey:         a.Client.GetId(),
+		AuthorizeCode:     a.AuthorizeData.Code,
+		RefreshToken:      a.RefreshToken,
+		ExpiresIn:         int64(a.ExpiresIn),
+		Scope:             strings.Split(a.Scope, " "),
+		RedirectURI:       a.RedirectUri,
+		CreatedAt:         a.CreatedAt,
+		UserData:          userData,
+	}, nil
+}
+
 type accessDataRepository struct {
 	client datastore.Client
+}
+
+func newAccessDataRepository(client datastore.Client) *accessDataRepository {
+	return &accessDataRepository{client: client}
 }
 
 func (a *accessDataRepository) put(ctx context.Context, ac *accessData) error {
