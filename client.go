@@ -41,13 +41,13 @@ func newClientRepository(client datastore.Client) *clientRepository {
 	return &clientRepository{client: client}
 }
 
-func (cl *clientRepository) Put(ctx context.Context, c *Client) error {
+func (cl *clientRepository) put(ctx context.Context, c *Client) error {
 	key := cl.client.NameKey(KindClient, c.GetId(), nil)
 	_, err := cl.client.Put(ctx, key, c)
 	return err
 }
 
-func (cl *clientRepository) Get(ctx context.Context, id string) (*Client, error) {
+func (cl *clientRepository) get(ctx context.Context, id string) (*Client, error) {
 	key := cl.client.NameKey(KindClient, id, nil)
 	dst := new(Client)
 	if err := cl.client.Get(ctx, key, dst); err != nil {
@@ -57,7 +57,7 @@ func (cl *clientRepository) Get(ctx context.Context, id string) (*Client, error)
 	return dst, nil
 }
 
-func (cl *clientRepository) Delete(ctx context.Context, id string) error {
+func (cl *clientRepository) delete(ctx context.Context, id string) error {
 	key := cl.client.NameKey(KindClient, id, nil)
 	return cl.client.Delete(ctx, key)
 }

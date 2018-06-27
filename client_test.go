@@ -54,7 +54,7 @@ func TestClientRepository_Put_ValidClient(t *testing.T) {
 			}
 
 			cr := &clientRepository{client: mockDSClient}
-			err := cr.Put(context.Background(), tt.in)
+			err := cr.put(context.Background(), tt.in)
 			if err != nil {
 				t.Error(err)
 			}
@@ -109,7 +109,7 @@ func TestClientRepository_Get(t *testing.T) {
 			}
 
 			cr := &clientRepository{client: mockDatastoreClient}
-			client, err := cr.Get(context.Background(), tt.in)
+			client, err := cr.get(context.Background(), tt.in)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -162,7 +162,7 @@ func TestClientRepository_Delete(t *testing.T) {
 			}
 
 			cr := &clientRepository{client: mockDatastoreClient}
-			if err := cr.Delete(context.Background(), tt.in); err != nil {
+			if err := cr.delete(context.Background(), tt.in); err != nil {
 				t.Error(err)
 			}
 		})
