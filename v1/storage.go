@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"go.mercari.io/datastore"
+	"go.mercari.io/datastore/aedatastore"
+	"go.mercari.io/datastore/clouddatastore"
 
 	"github.com/RangelReale/osin"
 )
@@ -46,27 +48,40 @@ type Storage struct {
 	refreshHandler    refreshHandler
 }
 
-// NewStorage is constructor for DatastoreStorage
-func NewStorage(ctx context.Context, opts ...StorageOption) (*Storage, error) {
-	s := new(Storage)
-	for _, o := range opts {
-		if err := o(s); err != nil {
-			return nil, err
-		}
+// NewStorage is constructor for storage of Google Cloud Datastore.
+// The object created by this constructor uses Google Cloud Client Library for Go.
+// If you want to use on Google App Engine Standard Edition, it should be recommanded to create object by NewStorageForGAE rather than use this.
+func NewStorage(ctx context.Context, opts ...datastore.ClientOption) (*Storage, error) {
+	client, err := clouddatastore.FromContext(ctx, opts...)
+	if err != nil {
+		return nil, err
 	}
+	return &Storage{
+		ctx:               ctx,
+		client:            client,
+		clientGetter:      newClientStorage(client),
+		authDataHandler:   newAuthorizeDataRepository(client),
+		accessDataHandler: newAccessDataRepository(client),
+		refreshHandler:    newRefreshRepository(client),
+	}, nil
+}
 
-	if s.client == nil {
-		if err := WithCloudDatastoreClient(ctx)(s); err != nil {
-			return nil, err
-		}
+// NewStorageForGAE is constructor for storage of Google Cloud Datastore.
+// The object created by this constructor uses Google App Engine SDK for Go.
+// If you want to use on other of Google App Engine Standard Edition, you must create object by NewStorage rather than use this.
+func NewStorageForGAE(ctx context.Context, opts ...datastore.ClientOption) (*Storage, error) {
+	client, err := aedatastore.FromContext(ctx, opts...)
+	if err != nil {
+		return nil, err
 	}
-
-	s.clientGetter = newClientStorage(s.client)
-	s.authDataHandler = newAuthorizeDataRepository(s.client)
-	s.accessDataHandler = newAccessDataRepository(s.client)
-	s.refreshHandler = newRefreshRepository(s.client)
-
-	return s, nil
+	return &Storage{
+		ctx:               ctx,
+		client:            client,
+		clientGetter:      newClientStorage(client),
+		authDataHandler:   newAuthorizeDataRepository(client),
+		accessDataHandler: newAccessDataRepository(client),
+		refreshHandler:    newRefreshRepository(client),
+	}, nil
 }
 
 // Clone is clonning storage instance
@@ -201,10 +216,6 @@ func (d *Storage) LoadRefresh(token string) (*osin.AccessData, error) {
 // RemoveRefresh delete refreshtoken data from datastore.
 func (d *Storage) RemoveRefresh(token string) error {
 	return d.refreshHandler.delete(d.ctx, token)
-}
-
-func (d *Storage) setClient(c datastore.Client) {
-	d.client = c
 }
 
 func errNoEntityOrDefault(err error) error {
