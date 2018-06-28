@@ -61,7 +61,7 @@ func NewStorage(ctx context.Context, opts ...StorageOption) (*Storage, error) {
 		}
 	}
 
-	s.clientGetter = NewClientStorage(s.client)
+	s.clientGetter = newClientStorage(s.client)
 	s.authDataHandler = newAuthorizeDataRepository(s.client)
 	s.accessDataHandler = newAccessDataRepository(s.client)
 	s.refreshHandler = newRefreshRepository(s.client)
