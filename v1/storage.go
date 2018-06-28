@@ -192,12 +192,12 @@ func (d *Storage) RemoveAccess(token string) error {
 // LoadRefresh loads accesstoken data entity for refresh token with authorize data entity and client entity from datastore.
 // If there is no match entity for the refresh token, LoadAuthorize returns osin.ErrNotFound.
 func (d *Storage) LoadRefresh(token string) (*osin.AccessData, error) {
-	_, err := d.refreshHandler.get(d.ctx, token)
+	ref, err := d.refreshHandler.get(d.ctx, token)
 	if err != nil {
 		return nil, errNoEntityOrDefault(err)
 	}
 
-	return d.LoadAccess(token)
+	return d.LoadAccess(ref.AccessToken)
 }
 
 // RemoveRefresh delete refreshtoken data from datastore.

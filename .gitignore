@@ -122,3 +122,4 @@ fabric.properties
 
 vendor/
 .idea/
+*_mock_test.go

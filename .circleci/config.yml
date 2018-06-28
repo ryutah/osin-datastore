@@ -12,11 +12,14 @@ jobs:
 
     # specify any bash command here prefixed with `run: `
     - run:
-        name: Resolve dependencies
-        command: cd v1 && dep ensure
+        name: initialize
+        command: make init
+    - run:
+        name: Generate mocks
+        command: make mockgen
     - run:
         name: Test
-        command: go test -v ./...
+        command: make test
 
 workflows:
   version: 2

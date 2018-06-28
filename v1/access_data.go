@@ -26,7 +26,10 @@ type accessData struct {
 }
 
 func newAccessDataFrom(a *osin.AccessData) (*accessData, error) {
-	var userData string
+	var (
+		userData          string
+		parentAccessToken string
+	)
 	if a.UserData != nil {
 		ud, ok := a.UserData.(string)
 		if !ok {
@@ -34,10 +37,13 @@ func newAccessDataFrom(a *osin.AccessData) (*accessData, error) {
 		}
 		userData = ud
 	}
+	if a.AccessData != nil {
+		parentAccessToken = a.AccessData.AccessToken
+	}
 
 	return &accessData{
 		AccessToken:       a.AccessToken,
-		ParentAccessToken: a.AccessData.AccessToken,
+		ParentAccessToken: parentAccessToken,
 		ClientKey:         a.Client.GetId(),
 		AuthorizeCode:     a.AuthorizeData.Code,
 		RefreshToken:      a.RefreshToken,
