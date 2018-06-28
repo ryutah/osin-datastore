@@ -1,7 +1,7 @@
 # osin-datastore
 [![CircleCI](https://circleci.com/gh/ryutah/osin-datastore/tree/master.svg?style=shield&circle-token=:circle-token)](https://circleci.com/gh/ryutah/osin-datastore/tree/master)
 [![GoDoc](https://godoc.org/github.com/ryutah/osin-datastore/v1?status.svg)](https://godoc.org/github.com/ryutah/osin-datastore/v1)
-[![MIT License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE.md)
+[![MIT License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE)
 
 A Google Cloud Datstore storage for [RangelReale/osin](https://github.com/RangelReale/osin).
 
