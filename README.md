@@ -54,7 +54,7 @@ import (
 	"github.com/ryutah/osin-datastore/v1"
 )
 
-func init() {
+func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		storage, err := datastore.NewStorage(r.Context())
 		if err != nil {
@@ -67,7 +67,9 @@ func init() {
 
         // do sometihng.
     }
+
+	http.ListenAndServe(":8080", nil)
 }
 ```
 
-[Full Examples](example/gaese)
+[Full Examples](example)
