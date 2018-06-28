@@ -11,10 +11,8 @@ import (
 )
 
 type (
-	clientHandler interface {
-		put(ctx context.Context, c *Client) error
-		get(ctx context.Context, id string) (*Client, error)
-		delete(ctx context.Context, id string) error
+	clientGetter interface {
+		Get(ctx context.Context, id string) (*Client, error)
 	}
 
 	authDataHandler interface {
@@ -42,7 +40,7 @@ type (
 type Storage struct {
 	ctx               context.Context
 	client            datastore.Client
-	clientHandler     clientHandler
+	clientGetter      clientGetter
 	authDataHandler   authDataHandler
 	accessDataHandler accessDataHandler
 	refreshHandler    refreshHandler
@@ -63,7 +61,7 @@ func NewStorage(ctx context.Context, opts ...StorageOption) (*Storage, error) {
 		}
 	}
 
-	s.clientHandler = newClientRepository(s.client)
+	s.clientGetter = NewClientStorage(s.client)
 	s.authDataHandler = newAuthorizeDataRepository(s.client)
 	s.accessDataHandler = newAccessDataRepository(s.client)
 	s.refreshHandler = newRefreshRepository(s.client)
@@ -86,7 +84,7 @@ func (d *Storage) Close() {
 // GetClient loads client entity from datastore.
 // If there is no match entity for the id, GetClient returns osin.ErrNotFound.
 func (d *Storage) GetClient(id string) (osin.Client, error) {
-	client, err := d.clientHandler.get(d.ctx, id)
+	client, err := d.clientGetter.Get(d.ctx, id)
 	if err != nil {
 		return nil, errNoEntityOrDefault(err)
 	}

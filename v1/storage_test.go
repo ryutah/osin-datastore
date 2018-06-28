@@ -32,10 +32,10 @@ func TestStorage_GetClient(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			mch := NewMockclientHandler(ctrl)
-			mch.EXPECT().get(gomock.Any(), tt.in).Times(1).Return(tt.want, nil)
+			mch := NewMockclientGetter(ctrl)
+			mch.EXPECT().Get(gomock.Any(), tt.in).Times(1).Return(tt.want, nil)
 
-			storage := &Storage{clientHandler: mch}
+			storage := &Storage{clientGetter: mch}
 
 			got, err := storage.GetClient(tt.in)
 			if err != nil {
@@ -135,14 +135,14 @@ func TestStorage_LoadAuthorize(t *testing.T) {
 
 			var (
 				mauh = NewMockauthDataHandler(ctrl)
-				mch  = NewMockclientHandler(ctrl)
+				mch  = NewMockclientGetter(ctrl)
 			)
 			mauh.EXPECT().get(gomock.Any(), tt.in).Return(tt.returns.auth, nil)
-			mch.EXPECT().get(gomock.Any(), tt.returns.auth.ClientKey).Return(tt.returns.client, nil)
+			mch.EXPECT().Get(gomock.Any(), tt.returns.auth.ClientKey).Return(tt.returns.client, nil)
 
 			storage := &Storage{
 				authDataHandler: mauh,
-				clientHandler:   mch,
+				clientGetter:    mch,
 			}
 
 			got, err := storage.LoadAuthorize(tt.in)
@@ -325,17 +325,17 @@ func TestStorage_LoadAccess(t *testing.T) {
 			defer ctrl.Finish()
 			var (
 				mach = NewMockaccessDataHandler(ctrl)
-				mch  = NewMockclientHandler(ctrl)
+				mch  = NewMockclientGetter(ctrl)
 				mauh = NewMockauthDataHandler(ctrl)
 			)
 			mach.EXPECT().get(gomock.Any(), tt.in).Return(tt.returns.access, nil)
-			mch.EXPECT().get(gomock.Any(), tt.returns.access.ClientKey).Return(tt.returns.client, nil)
+			mch.EXPECT().Get(gomock.Any(), tt.returns.access.ClientKey).Return(tt.returns.client, nil)
 			mauh.EXPECT().get(gomock.Any(), tt.returns.access.AuthorizeCode).Return(tt.returns.auth, nil)
-			mch.EXPECT().get(gomock.Any(), tt.returns.auth.ClientKey).Return(tt.returns.client, nil)
+			mch.EXPECT().Get(gomock.Any(), tt.returns.auth.ClientKey).Return(tt.returns.client, nil)
 
 			storage := &Storage{
 				accessDataHandler: mach,
-				clientHandler:     mch,
+				clientGetter:      mch,
 				authDataHandler:   mauh,
 			}
 
@@ -459,19 +459,19 @@ func TestStorage_LoadRefresh(t *testing.T) {
 			var (
 				mrh  = NewMockrefreshHandler(ctrl)
 				mach = NewMockaccessDataHandler(ctrl)
-				mch  = NewMockclientHandler(ctrl)
+				mch  = NewMockclientGetter(ctrl)
 				mauh = NewMockauthDataHandler(ctrl)
 			)
 			mrh.EXPECT().get(gomock.Any(), tt.in).Return(tt.want.refresh, nil)
 			mach.EXPECT().get(gomock.Any(), tt.want.refresh.AccessToken).Return(tt.returns.access, nil)
-			mch.EXPECT().get(gomock.Any(), tt.returns.access.ClientKey).Return(tt.returns.client, nil)
+			mch.EXPECT().Get(gomock.Any(), tt.returns.access.ClientKey).Return(tt.returns.client, nil)
 			mauh.EXPECT().get(gomock.Any(), tt.returns.access.AuthorizeCode).Return(tt.returns.auth, nil)
-			mch.EXPECT().get(gomock.Any(), tt.returns.auth.ClientKey).Return(tt.returns.client, nil)
+			mch.EXPECT().Get(gomock.Any(), tt.returns.auth.ClientKey).Return(tt.returns.client, nil)
 
 			storage := &Storage{
 				refreshHandler:    mrh,
 				accessDataHandler: mach,
-				clientHandler:     mch,
+				clientGetter:      mch,
 				authDataHandler:   mauh,
 			}
 
