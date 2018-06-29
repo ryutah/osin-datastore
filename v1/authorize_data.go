@@ -49,21 +49,21 @@ func newAuthorizeDataFrom(a *osin.AuthorizeData) (*authorizeData, error) {
 	}, nil
 }
 
-type authorizeDataRepository struct {
+type authorizeDataStorage struct {
 	client datastore.Client
 }
 
-func newAuthorizeDataRepository(client datastore.Client) *authorizeDataRepository {
-	return &authorizeDataRepository{client: client}
+func newAuthorizeDataStorage(client datastore.Client) *authorizeDataStorage {
+	return &authorizeDataStorage{client: client}
 }
 
-func (a *authorizeDataRepository) put(ctx context.Context, auth *authorizeData) error {
+func (a *authorizeDataStorage) put(ctx context.Context, auth *authorizeData) error {
 	key := a.client.NameKey(KindAuthorizeData, auth.Code, nil)
 	_, err := a.client.Put(ctx, key, auth)
 	return err
 }
 
-func (a *authorizeDataRepository) get(ctx context.Context, code string) (*authorizeData, error) {
+func (a *authorizeDataStorage) get(ctx context.Context, code string) (*authorizeData, error) {
 	key := a.client.NameKey(KindAuthorizeData, code, nil)
 	auth := new(authorizeData)
 	if err := a.client.Get(ctx, key, auth); err != nil {
@@ -73,7 +73,7 @@ func (a *authorizeDataRepository) get(ctx context.Context, code string) (*author
 	return auth, nil
 }
 
-func (a *authorizeDataRepository) delete(ctx context.Context, code string) error {
+func (a *authorizeDataStorage) delete(ctx context.Context, code string) error {
 	key := a.client.NameKey(KindAuthorizeData, code, nil)
 	return a.client.Delete(ctx, key)
 }

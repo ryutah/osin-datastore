@@ -55,21 +55,21 @@ func newAccessDataFrom(a *osin.AccessData) (*accessData, error) {
 	}, nil
 }
 
-type accessDataRepository struct {
+type accessDataStorage struct {
 	client datastore.Client
 }
 
-func newAccessDataRepository(client datastore.Client) *accessDataRepository {
-	return &accessDataRepository{client: client}
+func newAccessDataStorage(client datastore.Client) *accessDataStorage {
+	return &accessDataStorage{client: client}
 }
 
-func (a *accessDataRepository) put(ctx context.Context, ac *accessData) error {
+func (a *accessDataStorage) put(ctx context.Context, ac *accessData) error {
 	key := a.client.NameKey(KindAccessData, ac.AccessToken, nil)
 	_, err := a.client.Put(ctx, key, ac)
 	return err
 }
 
-func (a *accessDataRepository) get(ctx context.Context, token string) (*accessData, error) {
+func (a *accessDataStorage) get(ctx context.Context, token string) (*accessData, error) {
 	key := a.client.NameKey(KindAccessData, token, nil)
 	access := new(accessData)
 	if err := a.client.Get(ctx, key, access); err != nil {
@@ -79,7 +79,7 @@ func (a *accessDataRepository) get(ctx context.Context, token string) (*accessDa
 	return access, nil
 }
 
-func (a *accessDataRepository) delete(ctx context.Context, token string) error {
+func (a *accessDataStorage) delete(ctx context.Context, token string) error {
 	key := a.client.NameKey(KindAccessData, token, nil)
 	return a.client.Delete(ctx, key)
 }

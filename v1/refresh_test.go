@@ -5,62 +5,52 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/golang/mock/gomock"
+
 	"go.mercari.io/datastore"
 )
 
-func TestRefreshRepository_Put_ValidClient(t *testing.T) {
-	type want struct {
-		key datastore.Key
-		ref *refresh
-		id  string
-	}
+func TestRefreshRepository_Put(t *testing.T) {
+	type (
+		in struct {
+			refresh *refresh
+		}
+
+		returns struct {
+			key datastore.Key
+		}
+	)
+
 	tests := []struct {
 		testName string
-		in       *refresh
-		want     want
+		in       in
+		returns  returns
 	}{
 		{
 			testName: "test1",
-			in: &refresh{
-				RefreshToken: "refresh",
-				AccessToken:  "access",
-			},
-			want: want{
-				key: &mockKey{kind: "test", name: "sample"},
-				ref: &refresh{
+			in: in{
+				refresh: &refresh{
 					RefreshToken: "refresh",
 					AccessToken:  "access",
 				},
-				id: "refresh",
+			},
+			returns: returns{
+				key: &mockKey{kind: "test", name: "sample"},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			mockDSClient := &mockDatastoreClient{
-				put: func(ctx context.Context, key datastore.Key, src interface{}) (datastore.Key, error) {
-					if !reflect.DeepEqual(tt.want.key, key) {
-						t.Errorf("put key\nwant %#v\n got %#v", tt.want.key, key)
-					}
-					if !reflect.DeepEqual(tt.want.ref, src) {
-						t.Errorf("put refresh\nwant %#v\n got %#v", tt.want.ref, src)
-					}
-					return &mockKey{kind: "samplekind", name: "newsample"}, nil
-				},
-				nameKey: func(kind, name string, parent datastore.Key) datastore.Key {
-					if kind != KindRefresh {
-						t.Errorf("NameKey kind\nwant %v\n got %v", KindRefresh, kind)
-					}
-					if name != tt.want.id {
-						t.Errorf("NameKey name\nwant %v\n got %v", tt.want.id, name)
-					}
-					return tt.want.key
-				},
-			}
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 
-			rr := &refreshRepository{client: mockDSClient}
-			err := rr.put(context.Background(), tt.in)
+			mockDSClient := NewMockClient(ctrl)
+			mockDSClient.EXPECT().NameKey(KindRefresh, tt.in.refresh.RefreshToken, gomock.Nil()).Return(tt.returns.key)
+			mockDSClient.EXPECT().Put(gomock.Any(), tt.returns.key, tt.in.refresh).Return(tt.returns.key, nil)
+
+			storage := &refreshStorage{client: mockDSClient}
+			err := storage.put(context.Background(), tt.in.refresh)
 			if err != nil {
 				t.Error(err)
 			}
@@ -69,25 +59,42 @@ func TestRefreshRepository_Put_ValidClient(t *testing.T) {
 }
 
 func TestRefreshRepository_Get(t *testing.T) {
-	type want struct {
-		ref     *refresh
-		keyName string
-		key     datastore.Key
-	}
+	type (
+		in struct {
+			refreshToken string
+		}
+
+		out struct {
+			refresh *refresh
+		}
+
+		returns struct {
+			key     datastore.Key
+			refresh *refresh
+		}
+	)
+
 	tests := []struct {
 		testName string
-		in       string
-		want     want
+		in       in
+		out      out
+		returns  returns
 	}{
 		{
 			testName: "test1",
-			in:       "refresh",
-			want: want{
-				keyName: "refresh",
-				key:     &mockKey{kind: "kind", name: "token"},
-				ref: &refresh{
+			in: in{
+				refreshToken: "refresh",
+			},
+			out: out{
+				refresh: &refresh{
 					RefreshToken: "refresh",
 					AccessToken:  "access",
+				},
+			},
+			returns: returns{
+				key: &mockKey{kind: "kind", name: "token"},
+				refresh: &refresh{
+					AccessToken: "access",
 				},
 			},
 		},
@@ -95,83 +102,68 @@ func TestRefreshRepository_Get(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			mockDatastoreClient := &mockDatastoreClient{
-				get: func(ctx context.Context, key datastore.Key, dst interface{}) error {
-					if !reflect.DeepEqual(tt.want.key, key) {
-						t.Errorf("get key\nwant %#v\n get %#v", tt.want.key, key)
-					}
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 
-					val := reflect.ValueOf(dst)
-					wVal := reflect.ValueOf(tt.want.ref)
-					val.Elem().Set(wVal.Elem())
-					return nil
-				},
-				nameKey: func(kind, name string, parent datastore.Key) datastore.Key {
-					if kind != KindRefresh {
-						t.Errorf("NameKey kind\nwant %v\n got %v", KindRefresh, kind)
-					}
-					if name != tt.want.keyName {
-						t.Errorf("NameKey name\nwant %v\n got %v", tt.want.keyName, name)
-					}
-					return tt.want.key
-				},
-			}
+			mockDatastoreClient := NewMockClient(ctrl)
+			mockDatastoreClient.EXPECT().NameKey(KindRefresh, tt.in.refreshToken, gomock.Nil()).Return(tt.returns.key)
+			mockDatastoreClient.EXPECT().Get(gomock.Any(), tt.returns.key, gomock.Any()).DoAndReturn(func(_ context.Context, _ datastore.Key, dst interface{}) error {
+				val := reflect.ValueOf(dst)
+				wVal := reflect.ValueOf(tt.returns.refresh)
+				val.Elem().Set(wVal.Elem())
+				return nil
+			})
 
-			rr := &refreshRepository{client: mockDatastoreClient}
-			ref, err := rr.get(context.Background(), tt.in)
+			storage := &refreshStorage{client: mockDatastoreClient}
+			got, err := storage.get(context.Background(), tt.in.refreshToken)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(tt.want.ref, ref) {
-				t.Errorf("authorize data\nwant %#v\n got %#v", tt.want.ref, ref)
+			if !reflect.DeepEqual(tt.out.refresh, got) {
+				t.Errorf("refresh data\nwant %#v\n got %#v", tt.out.refresh, got)
 			}
 		})
 	}
 }
 
 func TestRefreshRepository_Delete(t *testing.T) {
-	type want struct {
-		keyName string
-		key     datastore.Key
-	}
+	type (
+		in struct {
+			refreshToken string
+		}
+
+		returns struct {
+			key datastore.Key
+		}
+	)
+
 	tests := []struct {
 		testName string
-		in       string
-		want     want
+		in       in
+		returns  returns
 	}{
 		{
 			testName: "test1",
-			in:       "sample",
-			want: want{
-				keyName: "sample",
-				key:     &mockKey{kind: "kind", name: "sample"},
+			in: in{
+				refreshToken: "sample",
+			},
+			returns: returns{
+				key: &mockKey{kind: "kind", name: "sample"},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 
-			mockDatastoreClient := &mockDatastoreClient{
-				delete: func(ctx context.Context, key datastore.Key) error {
-					if !reflect.DeepEqual(key, tt.want.key) {
-						t.Errorf("delete key\nwant %#v\n get %#v", tt.want.key, key)
-					}
-					return nil
-				},
-				nameKey: func(kind, name string, parent datastore.Key) datastore.Key {
-					if kind != KindRefresh {
-						t.Errorf("NameKey kind\nwant %v\n got %v", KindRefresh, kind)
-					}
-					if name != tt.want.keyName {
-						t.Errorf("NameKey name\nwant %v\n got %v", tt.want.keyName, name)
-					}
-					return tt.want.key
-				},
-			}
+			mockDatastoreClient := NewMockClient(ctrl)
+			mockDatastoreClient.EXPECT().NameKey(KindRefresh, tt.in.refreshToken, gomock.Nil()).Return(tt.returns.key)
+			mockDatastoreClient.EXPECT().Delete(gomock.Any(), tt.returns.key).Return(nil)
 
-			rr := &refreshRepository{client: mockDatastoreClient}
-			if err := rr.delete(context.Background(), tt.in); err != nil {
+			storage := &refreshStorage{client: mockDatastoreClient}
+			if err := storage.delete(context.Background(), tt.in.refreshToken); err != nil {
 				t.Error(err)
 			}
 		})

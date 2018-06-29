@@ -21,21 +21,21 @@ func newRefresh(refToken, accToken string) *refresh {
 	}
 }
 
-type refreshRepository struct {
+type refreshStorage struct {
 	client datastore.Client
 }
 
-func newRefreshRepository(client datastore.Client) *refreshRepository {
-	return &refreshRepository{client: client}
+func newRefreshStorage(client datastore.Client) *refreshStorage {
+	return &refreshStorage{client: client}
 }
 
-func (r *refreshRepository) put(ctx context.Context, ref *refresh) error {
+func (r *refreshStorage) put(ctx context.Context, ref *refresh) error {
 	key := r.client.NameKey(KindRefresh, ref.RefreshToken, nil)
 	_, err := r.client.Put(ctx, key, ref)
 	return err
 }
 
-func (r *refreshRepository) get(ctx context.Context, token string) (*refresh, error) {
+func (r *refreshStorage) get(ctx context.Context, token string) (*refresh, error) {
 	key := r.client.NameKey(KindRefresh, token, nil)
 	ref := new(refresh)
 	if err := r.client.Get(ctx, key, ref); err != nil {
@@ -45,7 +45,7 @@ func (r *refreshRepository) get(ctx context.Context, token string) (*refresh, er
 	return ref, nil
 }
 
-func (r *refreshRepository) delete(ctx context.Context, token string) error {
+func (r *refreshStorage) delete(ctx context.Context, token string) error {
 	key := r.client.NameKey(KindRefresh, token, nil)
 	return r.client.Delete(ctx, key)
 }

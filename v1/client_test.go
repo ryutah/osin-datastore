@@ -11,22 +11,28 @@ import (
 )
 
 func TestClientStorage_Put(t *testing.T) {
-	type returns struct {
-		key    datastore.Key
-		newKey datastore.Key
-	}
+	type (
+		in struct {
+			client *Client
+		}
+
+		returns struct {
+			key datastore.Key
+		}
+	)
 
 	tests := []struct {
 		testName string
-		in       *Client
+		in       in
 		returns  returns
 	}{
 		{
 			testName: "test1",
-			in:       &Client{ID: "sample", Secret: "secret", RedirectUri: "redirect"},
+			in: in{
+				client: &Client{ID: "sample", Secret: "secret", RedirectUri: "redirect"},
+			},
 			returns: returns{
-				key:    &mockKey{kind: "test", name: "sample"},
-				newKey: &mockKey{kind: "samplekind", name: "newsample"},
+				key: &mockKey{kind: "test", name: "sample"},
 			},
 		},
 	}
@@ -37,11 +43,11 @@ func TestClientStorage_Put(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockDSClient := NewMockClient(ctrl)
-			mockDSClient.EXPECT().NameKey(KindClient, tt.in.ID, gomock.Nil()).Return(tt.returns.key)
-			mockDSClient.EXPECT().Put(gomock.Any(), tt.returns.key, tt.in).Return(tt.returns.newKey, nil)
+			mockDSClient.EXPECT().NameKey(KindClient, tt.in.client.ID, gomock.Nil()).Return(tt.returns.key)
+			mockDSClient.EXPECT().Put(gomock.Any(), tt.returns.key, tt.in.client).Return(tt.returns.key, nil)
 
 			cr := &ClientStorage{client: mockDSClient}
-			err := cr.Put(context.Background(), tt.in)
+			err := cr.Put(context.Background(), tt.in.client)
 			if err != nil {
 				t.Error(err)
 			}
@@ -50,15 +56,28 @@ func TestClientStorage_Put(t *testing.T) {
 }
 
 func TestClientStorage_Put_InValidClient(t *testing.T) {
+	type (
+		in struct {
+			client *Client
+		}
+
+		out struct {
+			err error
+		}
+	)
 	tests := []struct {
 		testName string
-		in       *Client
-		want     error
+		in       in
+		out      out
 	}{
 		{
 			testName: "test1",
-			in:       &Client{Secret: "secret", RedirectUri: "redirect"},
-			want:     ErrEmptyClientID,
+			in: in{
+				client: &Client{Secret: "secret", RedirectUri: "redirect"},
+			},
+			out: out{
+				err: ErrEmptyClientID,
+			},
 		},
 	}
 
@@ -68,44 +87,51 @@ func TestClientStorage_Put_InValidClient(t *testing.T) {
 			defer ctrl.Finish()
 
 			cr := &ClientStorage{}
-			err := cr.Put(context.Background(), tt.in)
-			if err != tt.want {
-				t.Errorf("return error\nwant: %#v\n got: %#v", tt.want, err)
+			err := cr.Put(context.Background(), tt.in.client)
+			if err != tt.out.err {
+				t.Errorf("return error\nwant: %#v\n got: %#v", tt.out.err, err)
 			}
 		})
 	}
 }
 
 func TestClientStorage_PutMulti(t *testing.T) {
-	type returns struct {
-		keys []datastore.Key
-	}
+	type (
+		in struct {
+			clients []*Client
+		}
 
+		returns struct {
+			keys []datastore.Key
+		}
+	)
 	tests := []struct {
 		testName string
-		in       []*Client
+		in       in
 		returns  returns
 	}{
 		{
 			testName: "test1",
-			in: []*Client{
-				&Client{
-					ID:          "client1",
-					RedirectUri: "redirect1",
-					Secret:      "secret1",
-					UserData:    "user_data1",
-				},
-				&Client{
-					ID:          "client2",
-					RedirectUri: "redirect2",
-					Secret:      "secret2",
-					UserData:    "user_data2",
-				},
-				&Client{
-					ID:          "client3",
-					RedirectUri: "redirect3",
-					Secret:      "secret3",
-					UserData:    "user_data3",
+			in: in{
+				clients: []*Client{
+					&Client{
+						ID:          "client1",
+						RedirectUri: "redirect1",
+						Secret:      "secret1",
+						UserData:    "user_data1",
+					},
+					&Client{
+						ID:          "client2",
+						RedirectUri: "redirect2",
+						Secret:      "secret2",
+						UserData:    "user_data2",
+					},
+					&Client{
+						ID:          "client3",
+						RedirectUri: "redirect3",
+						Secret:      "secret3",
+						UserData:    "user_data3",
+					},
 				},
 			},
 			returns: returns{
@@ -124,13 +150,13 @@ func TestClientStorage_PutMulti(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockDSClient := NewMockClient(ctrl)
-			for i, client := range tt.in {
+			for i, client := range tt.in.clients {
 				mockDSClient.EXPECT().NameKey(KindClient, client.ID, gomock.Nil()).Return(tt.returns.keys[i])
 			}
-			mockDSClient.EXPECT().PutMulti(gomock.Any(), tt.returns.keys, tt.in).Return(nil, nil)
+			mockDSClient.EXPECT().PutMulti(gomock.Any(), tt.returns.keys, tt.in.clients).Return(nil, nil)
 
 			cr := &ClientStorage{client: mockDSClient}
-			err := cr.PutMulti(context.Background(), tt.in)
+			err := cr.PutMulti(context.Background(), tt.in.clients)
 			if err != nil {
 				t.Error(err)
 			}
@@ -139,25 +165,33 @@ func TestClientStorage_PutMulti(t *testing.T) {
 }
 
 func TestClientStorage_Get(t *testing.T) {
-	type want struct {
-		client *Client
-	}
+	type (
+		in struct {
+			id string
+		}
 
-	type returns struct {
-		key    datastore.Key
-		client *Client
-	}
+		out struct {
+			client *Client
+		}
+
+		returns struct {
+			key    datastore.Key
+			client *Client
+		}
+	)
 
 	tests := []struct {
 		testName string
-		in       string
-		want     want
+		in       in
+		out      out
 		returns  returns
 	}{
 		{
 			testName: "test1",
-			in:       "sample",
-			want: want{
+			in: in{
+				id: "sample",
+			},
+			out: out{
 				client: &Client{ID: "sample", Secret: "secret", RedirectUri: "redirect"},
 			},
 			returns: returns{
@@ -173,7 +207,7 @@ func TestClientStorage_Get(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockDatastoreClient := NewMockClient(ctrl)
-			mockDatastoreClient.EXPECT().NameKey(KindClient, tt.in, gomock.Nil()).Return(tt.returns.key)
+			mockDatastoreClient.EXPECT().NameKey(KindClient, tt.in.id, gomock.Nil()).Return(tt.returns.key)
 			mockDatastoreClient.EXPECT().Get(gomock.Any(), tt.returns.key, gomock.Any()).DoAndReturn(func(_ context.Context, _ datastore.Key, dst interface{}) error {
 				val := reflect.ValueOf(dst)
 				wVal := reflect.ValueOf(tt.returns.client)
@@ -182,50 +216,64 @@ func TestClientStorage_Get(t *testing.T) {
 			})
 
 			cr := &ClientStorage{client: mockDatastoreClient}
-			client, err := cr.Get(context.Background(), tt.in)
+			got, err := cr.Get(context.Background(), tt.in.id)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(tt.want.client, client) {
-				t.Errorf("client\nwant %#v\n got %#v", tt.want.client, client)
+			if !reflect.DeepEqual(tt.out.client, got) {
+				t.Errorf("client\nwant %#v\n got %#v", tt.out.client, got)
 			}
 		})
 	}
 }
 
 func TestClientStorage_GetMulti(t *testing.T) {
-	type returns struct {
-		keys    []datastore.Key
-		clients []*Client
-	}
+	type (
+		in struct {
+			ids []string
+		}
+
+		out struct {
+			clients []*Client
+		}
+
+		returns struct {
+			keys    []datastore.Key
+			clients []*Client
+		}
+	)
 
 	tests := []struct {
 		testName string
-		in       []string
-		wants    []*Client
+		in       in
+		out      out
 		returns  returns
 	}{
 		{
 			testName: "test1",
-			in:       []string{"id1", "id2", "id3"},
-			wants: []*Client{
-				&Client{
-					ID:          "id1",
-					Secret:      "secret1",
-					RedirectUri: "redirect1",
-					UserData:    "user_data1",
-				},
-				&Client{
-					ID:          "id2",
-					Secret:      "secret2",
-					RedirectUri: "redirect2",
-					UserData:    "user_data2",
-				},
-				&Client{
-					ID:          "id3",
-					Secret:      "secret3",
-					RedirectUri: "redirect3",
-					UserData:    "user_data3",
+			in: in{
+				ids: []string{"id1", "id2", "id3"},
+			},
+			out: out{
+				clients: []*Client{
+					&Client{
+						ID:          "id1",
+						Secret:      "secret1",
+						RedirectUri: "redirect1",
+						UserData:    "user_data1",
+					},
+					&Client{
+						ID:          "id2",
+						Secret:      "secret2",
+						RedirectUri: "redirect2",
+						UserData:    "user_data2",
+					},
+					&Client{
+						ID:          "id3",
+						Secret:      "secret3",
+						RedirectUri: "redirect3",
+						UserData:    "user_data3",
+					},
 				},
 			},
 			returns: returns{
@@ -261,7 +309,7 @@ func TestClientStorage_GetMulti(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockDatastoreClient := NewMockClient(ctrl)
-			for i, id := range tt.in {
+			for i, id := range tt.in.ids {
 				mockDatastoreClient.EXPECT().NameKey(KindClient, id, gomock.Nil()).Return(tt.returns.keys[i])
 			}
 			mockDatastoreClient.EXPECT().GetMulti(gomock.Any(), tt.returns.keys, gomock.Any()).DoAndReturn(func(_ context.Context, _ []datastore.Key, dst interface{}) error {
@@ -273,30 +321,38 @@ func TestClientStorage_GetMulti(t *testing.T) {
 			})
 
 			cr := &ClientStorage{client: mockDatastoreClient}
-			gots, err := cr.GetMulti(context.Background(), tt.in)
+			gots, err := cr.GetMulti(context.Background(), tt.in.ids)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(tt.wants, gots) {
-				t.Errorf("client\nwant %+v\n got %+v", tt.wants, gots)
+			if !reflect.DeepEqual(tt.out.clients, gots) {
+				t.Errorf("client\nwant %+v\n got %+v", tt.out.clients, gots)
 			}
 		})
 	}
 }
 
 func TestClientStorage_Delete(t *testing.T) {
-	type returns struct {
-		key datastore.Key
-	}
+	type (
+		in struct {
+			id string
+		}
+
+		returns struct {
+			key datastore.Key
+		}
+	)
 
 	tests := []struct {
 		testName string
-		in       string
+		in       in
 		returns  returns
 	}{
 		{
 			testName: "test1",
-			in:       "sample",
+			in: in{
+				id: "sample",
+			},
 			returns: returns{
 				key: &mockKey{kind: "kind", name: "sample"},
 			},
@@ -309,11 +365,11 @@ func TestClientStorage_Delete(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockDatastoreClient := NewMockClient(ctrl)
-			mockDatastoreClient.EXPECT().NameKey(KindClient, tt.in, gomock.Nil()).Return(tt.returns.key)
+			mockDatastoreClient.EXPECT().NameKey(KindClient, tt.in.id, gomock.Nil()).Return(tt.returns.key)
 			mockDatastoreClient.EXPECT().Delete(gomock.Any(), tt.returns.key).Return(nil)
 
 			cr := &ClientStorage{client: mockDatastoreClient}
-			if err := cr.Delete(context.Background(), tt.in); err != nil {
+			if err := cr.Delete(context.Background(), tt.in.id); err != nil {
 				t.Error(err)
 			}
 		})
@@ -321,18 +377,31 @@ func TestClientStorage_Delete(t *testing.T) {
 }
 
 func TestClientStorage_DeleteMulti(t *testing.T) {
+	type (
+		in struct {
+			ids []string
+		}
+
+		returns struct {
+			keys []datastore.Key
+		}
+	)
 	tests := []struct {
 		testName string
-		in       []string
-		returns  []datastore.Key
+		in       in
+		returns  returns
 	}{
 		{
 			testName: "test1",
-			in:       []string{"id1", "id2", "id3"},
-			returns: []datastore.Key{
-				&mockKey{kind: KindClient, name: "id1"},
-				&mockKey{kind: KindClient, name: "id2"},
-				&mockKey{kind: KindClient, name: "id3"},
+			in: in{
+				ids: []string{"id1", "id2", "id3"},
+			},
+			returns: returns{
+				keys: []datastore.Key{
+					&mockKey{kind: KindClient, name: "id1"},
+					&mockKey{kind: KindClient, name: "id2"},
+					&mockKey{kind: KindClient, name: "id3"},
+				},
 			},
 		},
 	}
@@ -343,13 +412,13 @@ func TestClientStorage_DeleteMulti(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockDatastoreClient := NewMockClient(ctrl)
-			for i, id := range tt.in {
-				mockDatastoreClient.EXPECT().NameKey(KindClient, id, gomock.Nil()).Return(tt.returns[i])
+			for i, id := range tt.in.ids {
+				mockDatastoreClient.EXPECT().NameKey(KindClient, id, gomock.Nil()).Return(tt.returns.keys[i])
 			}
-			mockDatastoreClient.EXPECT().DeleteMulti(gomock.Any(), tt.returns).Return(nil)
+			mockDatastoreClient.EXPECT().DeleteMulti(gomock.Any(), tt.returns.keys).Return(nil)
 
 			cr := &ClientStorage{client: mockDatastoreClient}
-			if err := cr.DeleteMulti(context.Background(), tt.in); err != nil {
+			if err := cr.DeleteMulti(context.Background(), tt.in.ids); err != nil {
 				t.Error(err)
 			}
 		})

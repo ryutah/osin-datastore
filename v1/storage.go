@@ -60,9 +60,9 @@ func NewStorage(ctx context.Context, opts ...datastore.ClientOption) (*Storage, 
 		ctx:               ctx,
 		client:            client,
 		clientGetter:      newClientStorage(client),
-		authDataHandler:   newAuthorizeDataRepository(client),
-		accessDataHandler: newAccessDataRepository(client),
-		refreshHandler:    newRefreshRepository(client),
+		authDataHandler:   newAuthorizeDataStorage(client),
+		accessDataHandler: newAccessDataStorage(client),
+		refreshHandler:    newRefreshStorage(client),
 	}, nil
 }
 
@@ -78,9 +78,9 @@ func NewStorageForGAE(ctx context.Context, opts ...datastore.ClientOption) (*Sto
 		ctx:               ctx,
 		client:            client,
 		clientGetter:      newClientStorage(client),
-		authDataHandler:   newAuthorizeDataRepository(client),
-		accessDataHandler: newAccessDataRepository(client),
-		refreshHandler:    newRefreshRepository(client),
+		authDataHandler:   newAuthorizeDataStorage(client),
+		accessDataHandler: newAccessDataStorage(client),
+		refreshHandler:    newRefreshStorage(client),
 	}, nil
 }
 

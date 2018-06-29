@@ -6,38 +6,32 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
+
 	"go.mercari.io/datastore"
 )
 
-func TestAuthorizeDataRepository_Put_ValidClient(t *testing.T) {
+func TestAuthorizeDataStorage_Put(t *testing.T) {
+	type (
+		in struct {
+			authorize *authorizeData
+		}
+
+		returns struct {
+			key datastore.Key
+		}
+	)
+
 	createAt := time.Now()
-	type want struct {
-		key  datastore.Key
-		auth *authorizeData
-		id   string
-	}
 	tests := []struct {
 		testName string
-		in       *authorizeData
-		want     want
+		in       in
+		returns  returns
 	}{
 		{
 			testName: "test1",
-			in: &authorizeData{
-				Code:                "code",
-				ClientKey:           "clientKey",
-				ExpiresIn:           123,
-				Scope:               []string{"scope", "scope2"},
-				RedirectURI:         "redirect",
-				State:               "state",
-				CreatedAt:           createAt,
-				UserData:            "userdata",
-				CodeChallenge:       "code_challenge",
-				CodeChallengeMethod: "code_challenge_method",
-			},
-			want: want{
-				key: &mockKey{kind: "test", name: "sample"},
-				auth: &authorizeData{
+			in: in{
+				authorize: &authorizeData{
 					Code:                "code",
 					ClientKey:           "clientKey",
 					ExpiresIn:           123,
@@ -49,36 +43,24 @@ func TestAuthorizeDataRepository_Put_ValidClient(t *testing.T) {
 					CodeChallenge:       "code_challenge",
 					CodeChallengeMethod: "code_challenge_method",
 				},
-				id: "code",
+			},
+			returns: returns{
+				key: &mockKey{kind: "test", name: "sample"},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			mockDSClient := &mockDatastoreClient{
-				put: func(ctx context.Context, key datastore.Key, src interface{}) (datastore.Key, error) {
-					if !reflect.DeepEqual(tt.want.key, key) {
-						t.Errorf("put key\nwant %#v\n got %#v", tt.want.key, key)
-					}
-					if !reflect.DeepEqual(tt.want.auth, src) {
-						t.Errorf("put auth\nwant %#v\n got %#v", tt.want.auth, src)
-					}
-					return &mockKey{kind: "samplekind", name: "newsample"}, nil
-				},
-				nameKey: func(kind, name string, parent datastore.Key) datastore.Key {
-					if kind != KindAuthorizeData {
-						t.Errorf("NameKey kind\nwant %v\n got %v", KindAuthorizeData, kind)
-					}
-					if name != tt.want.id {
-						t.Errorf("NameKey name\nwant %v\n got %v", tt.want.id, name)
-					}
-					return tt.want.key
-				},
-			}
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 
-			ar := &authorizeDataRepository{client: mockDSClient}
-			err := ar.put(context.Background(), tt.in)
+			mockDSClient := NewMockClient(ctrl)
+			mockDSClient.EXPECT().NameKey(KindAuthorizeData, tt.in.authorize.Code, gomock.Nil()).Return(tt.returns.key)
+			mockDSClient.EXPECT().Put(gomock.Any(), tt.returns.key, tt.in.authorize).Return(tt.returns.key, nil)
+
+			storage := &authorizeDataStorage{client: mockDSClient}
+			err := storage.put(context.Background(), tt.in.authorize)
 			if err != nil {
 				t.Error(err)
 			}
@@ -86,31 +68,57 @@ func TestAuthorizeDataRepository_Put_ValidClient(t *testing.T) {
 	}
 }
 
-func TestAuthorizeDataRepository_Get(t *testing.T) {
-	type want struct {
-		auth    *authorizeData
-		keyName string
-		key     datastore.Key
-	}
+func TestAuthorizeDataStorage_Get(t *testing.T) {
+	type (
+		in struct {
+			code string
+		}
+
+		out struct {
+			authorize *authorizeData
+		}
+
+		returns struct {
+			key       datastore.Key
+			authorize *authorizeData
+		}
+	)
+
+	createdAt := time.Now()
 	tests := []struct {
 		testName string
-		in       string
-		want     want
+		in       in
+		out      out
+		returns  returns
 	}{
 		{
 			testName: "test1",
-			in:       "code",
-			want: want{
-				keyName: "code",
-				key:     &mockKey{kind: "kind", name: "code"},
-				auth: &authorizeData{
+			in: in{
+				code: "code",
+			},
+			out: out{
+				authorize: &authorizeData{
 					Code:                "code",
 					ClientKey:           "clientKey",
 					ExpiresIn:           123,
 					Scope:               []string{"scope", "scope2"},
 					RedirectURI:         "redirect",
 					State:               "state",
-					CreatedAt:           time.Now(),
+					CreatedAt:           createdAt,
+					UserData:            "userdata",
+					CodeChallenge:       "code_challenge",
+					CodeChallengeMethod: "code_challenge_method",
+				},
+			},
+			returns: returns{
+				key: &mockKey{kind: "kind", name: "code"},
+				authorize: &authorizeData{
+					ClientKey:           "clientKey",
+					ExpiresIn:           123,
+					Scope:               []string{"scope", "scope2"},
+					RedirectURI:         "redirect",
+					State:               "state",
+					CreatedAt:           createdAt,
 					UserData:            "userdata",
 					CodeChallenge:       "code_challenge",
 					CodeChallengeMethod: "code_challenge_method",
@@ -121,83 +129,68 @@ func TestAuthorizeDataRepository_Get(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			mockDatastoreClient := &mockDatastoreClient{
-				get: func(ctx context.Context, key datastore.Key, dst interface{}) error {
-					if !reflect.DeepEqual(tt.want.key, key) {
-						t.Errorf("get key\nwant %#v\n get %#v", tt.want.key, key)
-					}
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 
-					val := reflect.ValueOf(dst)
-					wVal := reflect.ValueOf(tt.want.auth)
-					val.Elem().Set(wVal.Elem())
-					return nil
-				},
-				nameKey: func(kind, name string, parent datastore.Key) datastore.Key {
-					if kind != KindAuthorizeData {
-						t.Errorf("NameKey kind\nwant %v\n got %v", KindAuthorizeData, kind)
-					}
-					if name != tt.want.keyName {
-						t.Errorf("NameKey name\nwant %v\n got %v", tt.want.keyName, name)
-					}
-					return tt.want.key
-				},
-			}
+			mockDatastoreClient := NewMockClient(ctrl)
+			mockDatastoreClient.EXPECT().NameKey(KindAuthorizeData, tt.in.code, gomock.Nil()).Return(tt.returns.key)
+			mockDatastoreClient.EXPECT().Get(gomock.Any(), tt.returns.key, gomock.Any()).DoAndReturn(func(_ context.Context, _ datastore.Key, dst interface{}) error {
+				val := reflect.ValueOf(dst)
+				wVal := reflect.ValueOf(tt.returns.authorize)
+				val.Elem().Set(wVal.Elem())
+				return nil
+			})
 
-			ar := &authorizeDataRepository{client: mockDatastoreClient}
-			auth, err := ar.get(context.Background(), tt.in)
+			storage := &authorizeDataStorage{client: mockDatastoreClient}
+			got, err := storage.get(context.Background(), tt.in.code)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(tt.want.auth, auth) {
-				t.Errorf("authorize data\nwant %#v\n got %#v", tt.want.auth, auth)
+			if !reflect.DeepEqual(tt.out.authorize, got) {
+				t.Errorf("authorize data\nwant %#v\n got %#v", tt.out.authorize, got)
 			}
 		})
 	}
 }
 
-func TestAuthorizeDataRepository_Delete(t *testing.T) {
-	type want struct {
-		keyName string
-		key     datastore.Key
-	}
+func TestAuthorizeDataStorage_Delete(t *testing.T) {
+	type (
+		in struct {
+			code string
+		}
+
+		returns struct {
+			key datastore.Key
+		}
+	)
+
 	tests := []struct {
 		testName string
-		in       string
-		want     want
+		in       in
+		returns  returns
 	}{
 		{
 			testName: "test1",
-			in:       "sample",
-			want: want{
-				keyName: "sample",
-				key:     &mockKey{kind: "kind", name: "sample"},
+			in: in{
+				code: "sample",
+			},
+			returns: returns{
+				key: &mockKey{kind: "kind", name: "sample"},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 
-			mockDatastoreClient := &mockDatastoreClient{
-				delete: func(ctx context.Context, key datastore.Key) error {
-					if !reflect.DeepEqual(key, tt.want.key) {
-						t.Errorf("delete key\nwant %#v\n get %#v", tt.want.key, key)
-					}
-					return nil
-				},
-				nameKey: func(kind, name string, parent datastore.Key) datastore.Key {
-					if kind != KindAuthorizeData {
-						t.Errorf("NameKey kind\nwant %v\n got %v", KindAuthorizeData, kind)
-					}
-					if name != tt.want.keyName {
-						t.Errorf("NameKey name\nwant %v\n got %v", tt.want.keyName, name)
-					}
-					return tt.want.key
-				},
-			}
+			mockDatastoreClient := NewMockClient(ctrl)
+			mockDatastoreClient.EXPECT().NameKey(KindAuthorizeData, tt.in.code, gomock.Nil()).Return(tt.returns.key)
+			mockDatastoreClient.EXPECT().Delete(gomock.Any(), tt.returns.key).Return(nil)
 
-			ar := &authorizeDataRepository{client: mockDatastoreClient}
-			if err := ar.delete(context.Background(), tt.in); err != nil {
+			storage := &authorizeDataStorage{client: mockDatastoreClient}
+			if err := storage.delete(context.Background(), tt.in.code); err != nil {
 				t.Error(err)
 			}
 		})

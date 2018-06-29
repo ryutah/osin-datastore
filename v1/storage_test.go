@@ -10,19 +10,32 @@ import (
 )
 
 func TestStorage_GetClient(t *testing.T) {
+	type (
+		in struct {
+			id string
+		}
+
+		out struct {
+			client *Client
+		}
+	)
 	tests := []struct {
 		testName string
-		in       string
-		want     *Client
+		in       in
+		out      out
 	}{
 		{
 			testName: "test1",
-			in:       "client",
-			want: &Client{
-				ID:          "client",
-				Secret:      "secret",
-				RedirectUri: "redirect",
-				UserData:    "sample",
+			in: in{
+				id: "client",
+			},
+			out: out{
+				client: &Client{
+					ID:          "client",
+					Secret:      "secret",
+					RedirectUri: "redirect",
+					UserData:    "sample",
+				},
 			},
 		},
 	}
@@ -33,54 +46,67 @@ func TestStorage_GetClient(t *testing.T) {
 			defer ctrl.Finish()
 
 			mch := NewMockclientGetter(ctrl)
-			mch.EXPECT().Get(gomock.Any(), tt.in).Times(1).Return(tt.want, nil)
+			mch.EXPECT().Get(gomock.Any(), tt.in.id).Return(tt.out.client, nil)
 
 			storage := &Storage{clientGetter: mch}
 
-			got, err := storage.GetClient(tt.in)
+			got, err := storage.GetClient(tt.in.id)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(tt.want, got) {
-				t.Errorf("\nwant: %#v\n got: %#v", tt.want, got)
+			if !reflect.DeepEqual(tt.out.client, got) {
+				t.Errorf("\nwant: %#v\n got: %#v", tt.out.client, got)
 			}
 		})
 	}
 }
 
 func TestStorage_SaveAuthorize(t *testing.T) {
+	type (
+		in struct {
+			authorize *osin.AuthorizeData
+		}
+
+		args struct {
+			authorize *authorizeData
+		}
+	)
 	createdAt := time.Now()
 
 	tests := []struct {
 		testName string
-		in       *osin.AuthorizeData
-		want     *authorizeData
+		in       in
+		args     args
 	}{
 		{
 			testName: "test1",
-			in: &osin.AuthorizeData{
-				Code:                "code",
-				Client:              &Client{ID: "client"},
-				ExpiresIn:           1,
-				Scope:               "scope1 scope2",
-				RedirectUri:         "redirect",
-				State:               "state",
-				CreatedAt:           createdAt,
-				CodeChallenge:       "code_challenge",
-				CodeChallengeMethod: "code_challenge_method",
-				UserData:            "user_data",
+			in: in{
+				authorize: &osin.AuthorizeData{
+					Code:                "code",
+					Client:              &Client{ID: "client"},
+					ExpiresIn:           1,
+					Scope:               "scope1 scope2",
+					RedirectUri:         "redirect",
+					State:               "state",
+					CreatedAt:           createdAt,
+					CodeChallenge:       "code_challenge",
+					CodeChallengeMethod: "code_challenge_method",
+					UserData:            "user_data",
+				},
 			},
-			want: &authorizeData{
-				Code:                "code",
-				ClientKey:           "client",
-				ExpiresIn:           1,
-				Scope:               []string{"scope1", "scope2"},
-				RedirectURI:         "redirect",
-				State:               "state",
-				CreatedAt:           createdAt,
-				CodeChallenge:       "code_challenge",
-				CodeChallengeMethod: "code_challenge_method",
-				UserData:            "user_data",
+			args: args{
+				authorize: &authorizeData{
+					Code:                "code",
+					ClientKey:           "client",
+					ExpiresIn:           1,
+					Scope:               []string{"scope1", "scope2"},
+					RedirectURI:         "redirect",
+					State:               "state",
+					CreatedAt:           createdAt,
+					CodeChallenge:       "code_challenge",
+					CodeChallengeMethod: "code_challenge_method",
+					UserData:            "user_data",
+				},
 			},
 		},
 	}
@@ -91,11 +117,11 @@ func TestStorage_SaveAuthorize(t *testing.T) {
 			defer ctrl.Finish()
 
 			mauh := NewMockauthDataHandler(ctrl)
-			mauh.EXPECT().put(gomock.Any(), tt.want).Return(nil)
+			mauh.EXPECT().put(gomock.Any(), tt.args.authorize).Return(nil)
 
 			storage := &Storage{authDataHandler: mauh}
 
-			if err := storage.SaveAuthorize(tt.in); err != nil {
+			if err := storage.SaveAuthorize(tt.in.authorize); err != nil {
 				t.Fatal(err)
 			}
 		})
@@ -103,27 +129,42 @@ func TestStorage_SaveAuthorize(t *testing.T) {
 }
 
 func TestStorage_LoadAuthorize(t *testing.T) {
-	type returns struct {
-		auth   *authorizeData
-		client *Client
-	}
+	type (
+		in struct {
+			code string
+		}
+
+		returns struct {
+			authorize *authorizeData
+			client    *Client
+		}
+
+		out struct {
+			authorize *osin.AuthorizeData
+		}
+	)
+
 	tests := []struct {
 		testName string
-		in       string
-		want     *osin.AuthorizeData
+		in       in
+		out      out
 		returns  returns
 	}{
 		{
 			testName: "test1",
-			in:       "code",
-			want: &osin.AuthorizeData{
-				Code:     "auth",
-				Client:   &Client{ID: "client"},
-				UserData: "",
+			in: in{
+				code: "code",
+			},
+			out: out{
+				authorize: &osin.AuthorizeData{
+					Code:     "auth",
+					Client:   &Client{ID: "client"},
+					UserData: "",
+				},
 			},
 			returns: returns{
-				auth:   &authorizeData{Code: "auth", ClientKey: "client"},
-				client: &Client{ID: "client"},
+				authorize: &authorizeData{Code: "auth", ClientKey: "client"},
+				client:    &Client{ID: "client"},
 			},
 		},
 	}
@@ -137,33 +178,40 @@ func TestStorage_LoadAuthorize(t *testing.T) {
 				mauh = NewMockauthDataHandler(ctrl)
 				mch  = NewMockclientGetter(ctrl)
 			)
-			mauh.EXPECT().get(gomock.Any(), tt.in).Return(tt.returns.auth, nil)
-			mch.EXPECT().Get(gomock.Any(), tt.returns.auth.ClientKey).Return(tt.returns.client, nil)
+			mauh.EXPECT().get(gomock.Any(), tt.in.code).Return(tt.returns.authorize, nil)
+			mch.EXPECT().Get(gomock.Any(), tt.returns.authorize.ClientKey).Return(tt.returns.client, nil)
 
 			storage := &Storage{
 				authDataHandler: mauh,
 				clientGetter:    mch,
 			}
 
-			got, err := storage.LoadAuthorize(tt.in)
+			got, err := storage.LoadAuthorize(tt.in.code)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(tt.want, got) {
-				t.Errorf("\nwant: %#v\n got: %#v", tt.want, got)
+			if !reflect.DeepEqual(tt.out.authorize, got) {
+				t.Errorf("\nwant: %#v\n got: %#v", tt.out.authorize, got)
 			}
 		})
 	}
 }
 
 func TestStorage_RemoveAuthorize(t *testing.T) {
+	type (
+		in struct {
+			code string
+		}
+	)
 	tests := []struct {
 		testName string
-		in       string
+		in       in
 	}{
 		{
 			testName: "test1",
-			in:       "code",
+			in: in{
+				code: "code",
+			},
 		},
 	}
 
@@ -173,11 +221,11 @@ func TestStorage_RemoveAuthorize(t *testing.T) {
 			defer ctrl.Finish()
 
 			mauh := NewMockauthDataHandler(ctrl)
-			mauh.EXPECT().delete(gomock.Any(), tt.in).Return(nil)
+			mauh.EXPECT().delete(gomock.Any(), tt.in.code).Return(nil)
 
 			storage := &Storage{authDataHandler: mauh}
 
-			if err := storage.RemoveAuthorize(tt.in); err != nil {
+			if err := storage.RemoveAuthorize(tt.in.code); err != nil {
 				t.Fatal(err)
 			}
 		})
@@ -185,37 +233,50 @@ func TestStorage_RemoveAuthorize(t *testing.T) {
 }
 
 func TestStorage_SaveAccess(t *testing.T) {
+	type (
+		in struct {
+			access *osin.AccessData
+		}
+
+		args struct {
+			access *accessData
+		}
+	)
 	createdAt := time.Now()
 	tests := []struct {
 		testName string
-		in       *osin.AccessData
-		want     *accessData
+		in       in
+		args     args
 	}{
 		{
 			testName: "test1",
-			in: &osin.AccessData{
-				AccessToken:   "token",
-				AccessData:    &osin.AccessData{AccessToken: "token2"},
-				AuthorizeData: &osin.AuthorizeData{Code: "code"},
-				Client:        &Client{ID: "client"},
-				RefreshToken:  "",
-				ExpiresIn:     1,
-				Scope:         "scope1 scope2",
-				RedirectUri:   "redirect",
-				CreatedAt:     createdAt,
-				UserData:      "user_data",
+			in: in{
+				access: &osin.AccessData{
+					AccessToken:   "token",
+					AccessData:    &osin.AccessData{AccessToken: "token2"},
+					AuthorizeData: &osin.AuthorizeData{Code: "code"},
+					Client:        &Client{ID: "client"},
+					RefreshToken:  "",
+					ExpiresIn:     1,
+					Scope:         "scope1 scope2",
+					RedirectUri:   "redirect",
+					CreatedAt:     createdAt,
+					UserData:      "user_data",
+				},
 			},
-			want: &accessData{
-				AccessToken:       "token",
-				ParentAccessToken: "token2",
-				ClientKey:         "client",
-				AuthorizeCode:     "code",
-				RefreshToken:      "",
-				ExpiresIn:         1,
-				Scope:             []string{"scope1", "scope2"},
-				RedirectURI:       "redirect",
-				CreatedAt:         createdAt,
-				UserData:          "user_data",
+			args: args{
+				access: &accessData{
+					AccessToken:       "token",
+					ParentAccessToken: "token2",
+					ClientKey:         "client",
+					AuthorizeCode:     "code",
+					RefreshToken:      "",
+					ExpiresIn:         1,
+					Scope:             []string{"scope1", "scope2"},
+					RedirectURI:       "redirect",
+					CreatedAt:         createdAt,
+					UserData:          "user_data",
+				},
 			},
 		},
 	}
@@ -226,11 +287,11 @@ func TestStorage_SaveAccess(t *testing.T) {
 			defer ctrl.Finish()
 
 			mach := NewMockaccessDataHandler(ctrl)
-			mach.EXPECT().put(gomock.Any(), tt.want).Return(nil)
+			mach.EXPECT().put(gomock.Any(), tt.args.access).Return(nil)
 
 			storage := &Storage{accessDataHandler: mach}
 
-			if err := storage.SaveAccess(tt.in); err != nil {
+			if err := storage.SaveAccess(tt.in.access); err != nil {
 				t.Fatal(err)
 			}
 		})
@@ -238,22 +299,36 @@ func TestStorage_SaveAccess(t *testing.T) {
 }
 
 func TestStorage_SaveAccess_WithRefreshToken(t *testing.T) {
+	type (
+		in struct {
+			access *osin.AccessData
+		}
+
+		args struct {
+			refresh *refresh
+		}
+	)
+
 	tests := []struct {
 		testName string
-		in       *osin.AccessData
-		want     *refresh
+		in       in
+		args     args
 	}{
 		{
 			testName: "test1",
-			in: &osin.AccessData{
-				AccessToken:   "token",
-				RefreshToken:  "refresh",
-				Client:        new(Client),
-				AuthorizeData: new(osin.AuthorizeData),
+			in: in{
+				access: &osin.AccessData{
+					AccessToken:   "token",
+					RefreshToken:  "refresh",
+					Client:        new(Client),
+					AuthorizeData: new(osin.AuthorizeData),
+				},
 			},
-			want: &refresh{
-				RefreshToken: "refresh",
-				AccessToken:  "token",
+			args: args{
+				refresh: &refresh{
+					RefreshToken: "refresh",
+					AccessToken:  "token",
+				},
 			},
 		},
 	}
@@ -268,14 +343,14 @@ func TestStorage_SaveAccess_WithRefreshToken(t *testing.T) {
 				mrh  = NewMockrefreshHandler(ctrl)
 			)
 			mach.EXPECT().put(gomock.Any(), gomock.Any()).Return(nil)
-			mrh.EXPECT().put(gomock.Any(), tt.want).Return(nil)
+			mrh.EXPECT().put(gomock.Any(), tt.args.refresh).Return(nil)
 
 			storage := &Storage{
 				accessDataHandler: mach,
 				refreshHandler:    mrh,
 			}
 
-			if err := storage.SaveAccess(tt.in); err != nil {
+			if err := storage.SaveAccess(tt.in.access); err != nil {
 				t.Fatal(err)
 			}
 		})
@@ -283,29 +358,44 @@ func TestStorage_SaveAccess_WithRefreshToken(t *testing.T) {
 }
 
 func TestStorage_LoadAccess(t *testing.T) {
-	type returns struct {
-		access *accessData
-		auth   *authorizeData
-		client *Client
-	}
+	type (
+		in struct {
+			token string
+		}
+
+		returns struct {
+			access *accessData
+			auth   *authorizeData
+			client *Client
+		}
+
+		out struct {
+			access *osin.AccessData
+		}
+	)
+
 	tests := []struct {
 		testName string
-		in       string
-		want     *osin.AccessData
+		in       in
+		out      out
 		returns  returns
 	}{
 		{
 			testName: "test1",
-			in:       "token",
-			want: &osin.AccessData{
-				Client: &Client{ID: "client"},
-				AuthorizeData: &osin.AuthorizeData{
-					Code:     "auth",
-					Client:   &Client{ID: "client"},
-					UserData: "",
+			in: in{
+				token: "token",
+			},
+			out: out{
+				access: &osin.AccessData{
+					Client: &Client{ID: "client"},
+					AuthorizeData: &osin.AuthorizeData{
+						Code:     "auth",
+						Client:   &Client{ID: "client"},
+						UserData: "",
+					},
+					AccessToken: "token",
+					UserData:    "",
 				},
-				AccessToken: "token",
-				UserData:    "",
 			},
 			returns: returns{
 				access: &accessData{
@@ -328,7 +418,7 @@ func TestStorage_LoadAccess(t *testing.T) {
 				mch  = NewMockclientGetter(ctrl)
 				mauh = NewMockauthDataHandler(ctrl)
 			)
-			mach.EXPECT().get(gomock.Any(), tt.in).Return(tt.returns.access, nil)
+			mach.EXPECT().get(gomock.Any(), tt.in.token).Return(tt.returns.access, nil)
 			mch.EXPECT().Get(gomock.Any(), tt.returns.access.ClientKey).Return(tt.returns.client, nil)
 			mauh.EXPECT().get(gomock.Any(), tt.returns.access.AuthorizeCode).Return(tt.returns.auth, nil)
 			mch.EXPECT().Get(gomock.Any(), tt.returns.auth.ClientKey).Return(tt.returns.client, nil)
@@ -339,20 +429,20 @@ func TestStorage_LoadAccess(t *testing.T) {
 				authDataHandler:   mauh,
 			}
 
-			got, err := storage.LoadAccess(tt.in)
+			got, err := storage.LoadAccess(tt.in.token)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(tt.want, got) {
-				t.Errorf("\nwant: %#v\n got: %#v", tt.want, got)
-				if !reflect.DeepEqual(tt.want.Client, got.Client) {
-					t.Errorf("client\nwant: %#v\n got: %#v", tt.want.Client, got.Client)
+			if !reflect.DeepEqual(tt.out.access, got) {
+				t.Errorf("\nwant: %#v\n got: %#v", tt.out.access, got)
+				if !reflect.DeepEqual(tt.out.access.Client, got.Client) {
+					t.Errorf("client\nwant: %#v\n got: %#v", tt.out.access.Client, got.Client)
 				}
-				if !reflect.DeepEqual(tt.want.AuthorizeData, got.AuthorizeData) {
-					t.Errorf("auth\nwant: %#v\n got: %#v", tt.want.AuthorizeData, got.AuthorizeData)
+				if !reflect.DeepEqual(tt.out.access.AuthorizeData, got.AuthorizeData) {
+					t.Errorf("auth\nwant: %#v\n got: %#v", tt.out.access.AuthorizeData, got.AuthorizeData)
 				}
-				if !reflect.DeepEqual(tt.want.AuthorizeData.Client, got.AuthorizeData.Client) {
-					t.Errorf("auth client\nwant: %#v\n got: %#v", tt.want.AuthorizeData.Client, got.AuthorizeData.Client)
+				if !reflect.DeepEqual(tt.out.access.AuthorizeData.Client, got.AuthorizeData.Client) {
+					t.Errorf("auth client\nwant: %#v\n got: %#v", tt.out.access.AuthorizeData.Client, got.AuthorizeData.Client)
 				}
 			}
 		})
@@ -360,13 +450,21 @@ func TestStorage_LoadAccess(t *testing.T) {
 }
 
 func TestStorage_RemoveAccess(t *testing.T) {
+	type (
+		in struct {
+			token string
+		}
+	)
+
 	tests := []struct {
 		testName string
-		in       string
+		in       in
 	}{
 		{
 			testName: "test1",
-			in:       "token",
+			in: in{
+				token: "token",
+			},
 		},
 	}
 
@@ -376,11 +474,11 @@ func TestStorage_RemoveAccess(t *testing.T) {
 			defer ctrl.Finish()
 
 			mach := NewMockaccessDataHandler(ctrl)
-			mach.EXPECT().delete(gomock.Any(), tt.in).Return(nil)
+			mach.EXPECT().delete(gomock.Any(), tt.in.token).Return(nil)
 
 			storage := &Storage{accessDataHandler: mach}
 
-			if err := storage.RemoveAccess(tt.in); err != nil {
+			if err := storage.RemoveAccess(tt.in.token); err != nil {
 				t.Fatal(err)
 			}
 		})
@@ -388,27 +486,37 @@ func TestStorage_RemoveAccess(t *testing.T) {
 }
 
 func TestStorage_LoadRefresh(t *testing.T) {
-	type want struct {
-		refresh *refresh
-		access  *osin.AccessData
-	}
-	type returns struct {
-		access *accessData
-		auth   *authorizeData
-		client *Client
-	}
+	type (
+		in struct {
+			refreshToken string
+		}
+
+		out struct {
+			access *osin.AccessData
+		}
+
+		returns struct {
+			refresh      *refresh
+			access       *accessData
+			authorize    *authorizeData
+			accessClient *Client
+			authClient   *Client
+		}
+	)
 
 	createdAt := time.Now()
 	tests := []struct {
 		testName string
-		in       string
-		want     want
+		in       in
+		out      out
 		returns  returns
 	}{
 		{
 			testName: "test1",
-			in:       "refresh_token",
-			want: want{
+			in: in{
+				refreshToken: "refresh_token",
+			},
+			out: out{
 				access: &osin.AccessData{
 					AccessToken: "token",
 					AuthorizeData: &osin.AuthorizeData{
@@ -424,10 +532,6 @@ func TestStorage_LoadRefresh(t *testing.T) {
 					CreatedAt:    createdAt,
 					UserData:     "user_data",
 				},
-				refresh: &refresh{
-					RefreshToken: "refresh_token",
-					AccessToken:  "token",
-				},
 			},
 			returns: returns{
 				access: &accessData{
@@ -441,18 +545,22 @@ func TestStorage_LoadRefresh(t *testing.T) {
 					CreatedAt:     createdAt,
 					UserData:      "user_data",
 				},
-				auth: &authorizeData{
+				refresh: &refresh{
+					RefreshToken: "refresh_token",
+					AccessToken:  "token",
+				},
+				authorize: &authorizeData{
 					Code:      "auth",
 					ClientKey: "a_client",
 				},
-				client: &Client{ID: "client"},
+				accessClient: &Client{ID: "client"},
+				authClient:   &Client{ID: "client"},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			// TODO implement test codes.
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
@@ -462,11 +570,11 @@ func TestStorage_LoadRefresh(t *testing.T) {
 				mch  = NewMockclientGetter(ctrl)
 				mauh = NewMockauthDataHandler(ctrl)
 			)
-			mrh.EXPECT().get(gomock.Any(), tt.in).Return(tt.want.refresh, nil)
-			mach.EXPECT().get(gomock.Any(), tt.want.refresh.AccessToken).Return(tt.returns.access, nil)
-			mch.EXPECT().Get(gomock.Any(), tt.returns.access.ClientKey).Return(tt.returns.client, nil)
-			mauh.EXPECT().get(gomock.Any(), tt.returns.access.AuthorizeCode).Return(tt.returns.auth, nil)
-			mch.EXPECT().Get(gomock.Any(), tt.returns.auth.ClientKey).Return(tt.returns.client, nil)
+			mrh.EXPECT().get(gomock.Any(), tt.in.refreshToken).Return(tt.returns.refresh, nil)
+			mach.EXPECT().get(gomock.Any(), tt.returns.refresh.AccessToken).Return(tt.returns.access, nil)
+			mch.EXPECT().Get(gomock.Any(), tt.returns.access.ClientKey).Return(tt.returns.accessClient, nil)
+			mauh.EXPECT().get(gomock.Any(), tt.returns.access.AuthorizeCode).Return(tt.returns.authorize, nil)
+			mch.EXPECT().Get(gomock.Any(), tt.returns.authorize.ClientKey).Return(tt.returns.authClient, nil)
 
 			storage := &Storage{
 				refreshHandler:    mrh,
@@ -475,20 +583,20 @@ func TestStorage_LoadRefresh(t *testing.T) {
 				authDataHandler:   mauh,
 			}
 
-			got, err := storage.LoadRefresh(tt.in)
+			got, err := storage.LoadRefresh(tt.in.refreshToken)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(tt.want.access, got) {
-				t.Errorf("\nwant: %#v\n got: %#v", tt.want, got)
-				if !reflect.DeepEqual(tt.want.access.Client, got.Client) {
-					t.Errorf("client\nwant: %#v\n got: %#v", tt.want.access.Client, got.Client)
+			if !reflect.DeepEqual(tt.out.access, got) {
+				t.Errorf("\nwant: %#v\n got: %#v", tt.out.access, got)
+				if !reflect.DeepEqual(tt.out.access.Client, got.Client) {
+					t.Errorf("client\nwant: %#v\n got: %#v", tt.out.access.Client, got.Client)
 				}
-				if !reflect.DeepEqual(tt.want.access.AuthorizeData, got.AuthorizeData) {
-					t.Errorf("auth\nwant: %#v\n got: %#v", tt.want.access.AuthorizeData, got.AuthorizeData)
+				if !reflect.DeepEqual(tt.out.access.AuthorizeData, got.AuthorizeData) {
+					t.Errorf("auth\nwant: %#v\n got: %#v", tt.out.access.AuthorizeData, got.AuthorizeData)
 				}
-				if !reflect.DeepEqual(tt.want.access.AuthorizeData.Client, got.AuthorizeData.Client) {
-					t.Errorf("auth client\nwant: %#v\n got: %#v", tt.want.access.AuthorizeData.Client, got.AuthorizeData.Client)
+				if !reflect.DeepEqual(tt.out.access.AuthorizeData.Client, got.AuthorizeData.Client) {
+					t.Errorf("auth client\nwant: %#v\n got: %#v", tt.out.access.AuthorizeData.Client, got.AuthorizeData.Client)
 				}
 			}
 		})
@@ -496,13 +604,21 @@ func TestStorage_LoadRefresh(t *testing.T) {
 }
 
 func TestStorage_RemoveRefresh(t *testing.T) {
+	type (
+		in struct {
+			refreshToken string
+		}
+	)
+
 	tests := []struct {
 		testName string
-		in       string
+		in       in
 	}{
 		{
 			testName: "test1",
-			in:       "refresth_token",
+			in: in{
+				refreshToken: "refresth_token",
+			},
 		},
 	}
 
@@ -512,11 +628,11 @@ func TestStorage_RemoveRefresh(t *testing.T) {
 			defer ctrl.Finish()
 
 			mrh := NewMockrefreshHandler(ctrl)
-			mrh.EXPECT().delete(gomock.Any(), tt.in).Return(nil)
+			mrh.EXPECT().delete(gomock.Any(), tt.in.refreshToken).Return(nil)
 
 			storage := &Storage{refreshHandler: mrh}
 
-			if err := storage.RemoveRefresh(tt.in); err != nil {
+			if err := storage.RemoveRefresh(tt.in.refreshToken); err != nil {
 				t.Fatal(err)
 			}
 		})
