@@ -38,8 +38,8 @@ func init() {
 
 		server := osin.NewServer(osin.NewServerConfig(), storage)
 
-        // do sometihng.
-    }
+		// do sometihng.
+	})
 }
 ```
 
@@ -65,8 +65,8 @@ func main() {
 
 		server := osin.NewServer(osin.NewServerConfig(), storage)
 
-        // do sometihng.
-    }
+		// do sometihng.
+	})
 
 	http.ListenAndServe(":8080", nil)
 }
